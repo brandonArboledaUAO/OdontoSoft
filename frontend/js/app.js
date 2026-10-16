@@ -3,6 +3,7 @@ const MENU = [
   { page:"dashboard.html", label:"Inicio",            icon:"🏠", roles:["odontologa","recepcionista","administrador"] },
   { page:"pacientes.html", label:"Pacientes",         icon:"👥", roles:["odontologa","recepcionista"] },
   { page:"citas.html",     label:"Agenda de citas",   icon:"📅", roles:["odontologa","recepcionista"] },
+  { page:"sala.html",      label:"Sala de espera",    icon:"🪑", roles:["odontologa","recepcionista"] },
   { page:"historia.html",  label:"Historia clínica",  icon:"🦷", roles:["odontologa"] },
   { page:"usuarios.html",  label:"Administración",    icon:"⚙️", roles:["administrador"] },
 ];

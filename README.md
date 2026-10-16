@@ -1,103 +1,109 @@
-# 🦷 OdontoSoft — Sistema de gestión para consultorio odontológico
+# 🦷 OdontoSoft — Sistema de gestión odontológica con estructuras de datos
 
-Aplicación web desarrollada bajo el marco ágil **Scrum**, con arquitectura de **tres capas**
-(presentación, lógica de negocio y datos), conforme al Informe 2 de Arquitectura de Software.
-
-- **Frontend (presentación):** HTML + CSS + JavaScript (sin frameworks).
-- **Backend (lógica de negocio):** Python + FastAPI (API REST).
-- **Base de datos (datos):** MongoDB + GridFS (para archivos adjuntos).
-- **Seguridad:** autenticación con JWT, contraseñas con BCrypt y control de acceso por roles (RBAC).
-
-## Módulos (según los requisitos del SRS)
-| Módulo | Requisitos | Rol que lo usa |
-|---|---|---|
-| Autenticación y control de acceso | RF-01 a RF-03 | Todos |
-| Gestión de pacientes | RF-04 a RF-06 | Recepcionista, Odontóloga |
-| Agendamiento de citas | RF-07 a RF-09 | Recepcionista, Odontóloga |
-| Historia clínica + odontograma | RF-10 a RF-15 | Odontóloga |
-| Administración de usuarios | RF-16 | Administrador |
+Proyecto final — Universidad Autónoma de Occidente (UAO).
+Plataforma web para la gestión de un consultorio odontológico que **implementa y
+utiliza cinco estructuras de datos** sobre una arquitectura de tres capas, con
+almacenamiento y transacciones en **MongoDB**.
 
 ---
 
-## ✅ Requisitos previos
-1. **Python 3.11 o superior**
-2. **MongoDB 6.0+** corriendo en `localhost:27017` (MongoDB Community + opcionalmente MongoDB Compass).
+## 👥 Integrantes y aporte por rama
 
-## 🚀 Puesta en marcha (paso a paso)
+| Integrante | Código | Rama Git | Aporte principal |
+|---|---|---|---|
+| Jhon Brandon Arboleda Criollo | 2243499 | `jhon` | Capa de lógica y datos: API (FastAPI), MongoDB y estructuras Trie, Árbol/BST y Grafo |
+| Leydi Dayana Narváez | 2240494 | `leydi` | Estructuras lineales (Cola y Pila), documentación y despliegue |
+| Clara Mercedes Acevedo Urbano | 2240713 | `clara` | Capa de presentación: todo el frontend + pruebas |
+
+Todas las ramas se integran (merge) sobre `main`.
+
+## 🔗 Enlaces de la entrega
+
+| Recurso | Enlace |
+|---|---|
+| Repositorio Git | https://github.com/Claracevedo/OdontoSoft_Entrega_Final |
+| Frontend (Netlify) | `<PEGAR_URL_DE_NETLIFY>` |
+| Backend / API (Render) | `<PEGAR_URL_DE_RENDER>` |
+
+---
+
+## 🧩 Estructuras de datos implementadas (5)
+
+| # | Estructura | Grupo | Uso en OdontoSoft | Archivo |
+|---|---|---|---|---|
+| 1 | **Cola** (FIFO) | Lineal | Sala de espera: turnos en orden de llegada | `backend/estructuras/cola.py` |
+| 2 | **Pila** (LIFO) | Lineal | Deshacer (undo) cambios en el odontograma | `backend/estructuras/pila.py` |
+| 3 | **Árbol Binario de Búsqueda** | Jerárquica | Índice de pacientes por documento (búsqueda O(log n)) | `backend/estructuras/arbol.py` |
+| 4 | **Trie** | Jerárquica | Autocompletado de búsqueda de pacientes | `backend/estructuras/trie.py` |
+| 5 | **Grafo dirigido** | Grafo | Dependencias de procedimientos + orden topológico | `backend/estructuras/grafo.py` |
+
+Se cumple el requisito: **2** estructuras de {lista, pila, cola} + **2** de {árbol, trie, heap} + **1** grafo.
+
+Cada estructura está **integrada dentro de su módulo** (Sala de espera, Pacientes e Historia clínica),
+de forma transparente para el usuario. La página `estructuras.html` queda como **anexo técnico**
+(sin enlace en el menú) para verificar las cinco en un solo lugar.
+La explicación y justificación detallada está en [`docs/DOCUMENTO_FINAL.md`](docs/DOCUMENTO_FINAL.md).
+
+## 🛠️ Tecnologías
+
+- **Frontend (presentación):** HTML, CSS y JavaScript (sin frameworks).
+- **Backend (lógica de negocio):** Python + FastAPI (API REST).
+- **Base de datos (datos):** MongoDB + GridFS.
+- **Seguridad:** autenticación JWT, contraseñas con BCrypt, control de acceso por roles (RBAC).
+- **Despliegue:** Netlify (frontend), Render (backend), MongoDB Atlas (base de datos).
+
+## ▶️ Ejecución local
+
+**Requisitos:** Python 3.11+ y MongoDB (local o una cuenta de MongoDB Atlas).
 
 ```bash
-# 1. Entrar a la carpeta del backend
-cd OdontoSoft/backend
-
-# 2. Crear y activar un entorno virtual
+# 1) Backend
+cd backend
 python -m venv venv
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# 3. Instalar dependencias
+# Windows: venv\Scripts\activate   |   Linux/Mac: source venv/bin/activate
 pip install -r requirements.txt
 
-# 4. Verificar MongoDB
-#    Asegúrese de que el servicio de MongoDB esté activo.
-#    La base de datos se define en el archivo .env (DATABASE_NAME=base_Odontosoft).
-#    Si desea usar la base que creó en Compass (base_OdontoSort),
-#    cambie DATABASE_NAME en .env a: base_OdontoSort
+# 2) Configurar variables de entorno
+copy .env.example .env     # Windows  (Linux/Mac: cp .env.example .env)
+#   Edita .env con tu MONGO_URL (local o Atlas)
 
-# 5. Cargar los datos iniciales (3 usuarios + 3 pacientes + odontograma + citas)
+# 3) Cargar datos de ejemplo (usuarios, pacientes, procedimientos, turnos)
 python seed.py
 
-# 6. Iniciar el servidor
+# 4) Iniciar el servidor (sirve API + frontend)
 uvicorn main:app --reload
-# opcion adicional
-python -m uvicorn main:app --reload
-
 ```
 
-Luego abra en el navegador: **http://localhost:8000**
+Abre **http://localhost:8000**. Documentación interactiva de la API en **/docs**.
 
-> El backend sirve también el frontend. La documentación interactiva de la API
-> (Swagger) queda disponible en **http://localhost:8000/docs**.
-
-## 👤 Usuarios de prueba
+### Usuarios de prueba
 | Rol | Correo | Contraseña |
 |---|---|---|
 | Odontóloga | odontologa@odontosoft.com | Odonto123 |
 | Recepcionista | recepcion@odontosoft.com | Recepcion123 |
 | Administrador | admin@odontosoft.com | Admin123 |
 
-## 🦷 Odontograma
-- 32 dientes permanentes en notación **FDI**, organizados en 4 cuadrantes.
-- Estados (con código de color tomado de las convenciones del odontograma):
-  Sano, Caries (rojo), Obturado/Resina (azul), Sellante (amarillo), Corona (morado),
-  En tratamiento (naranja), Para extracción (rosa) y Ausente (gris).
-- Interacción por **manipulación directa**: se selecciona un estado en la paleta y se
-  hace clic sobre cada diente. La valoración queda **inmutable** una vez registrada.
+## 📂 Estructura del proyecto
 
-## 📁 Estructura del proyecto
 ```
 OdontoSoft/
-├── backend/
-│   ├── core/        # config, conexión a Mongo, seguridad (JWT, BCrypt, RBAC)
-│   ├── models/      # nombres de colecciones
-│   ├── schemas/     # validación de datos (Pydantic)
-│   ├── services/    # lógica de negocio de cada módulo
-│   ├── routers/     # endpoints de la API REST
-│   ├── utils/       # utilidades y validadores
-│   ├── main.py      # aplicación FastAPI (incluye routers + sirve el frontend)
-│   ├── seed.py      # carga de datos iniciales
-│   └── .env         # variables de entorno
-└── frontend/
-    ├── css/         # estilos
-    ├── js/          # api, layout, odontograma y lógica de cada página
-    └── *.html       # login, dashboard, pacientes, citas, historia, usuarios
+├── backend/                 # FastAPI (lógica de negocio)
+│   ├── estructuras/         # ★ Las 5 estructuras de datos (cola, pila, arbol, trie, grafo)
+│   ├── core/                # configuración, conexión Mongo, seguridad (JWT/BCrypt/RBAC)
+│   ├── models/ schemas/     # colecciones y validación (Pydantic)
+│   ├── services/            # lógica de cada módulo (incl. turnos, odontograma, estructuras)
+│   ├── routers/             # endpoints REST
+│   ├── main.py  seed.py     # app y carga de datos
+│   └── requirements.txt
+├── frontend/                # HTML/CSS/JS (presentación)
+│   ├── estructuras.html     # ★ Página visual de las 5 estructuras
+│   └── js/ css/ ...
+├── docs/                    # Documento final de la entrega
+├── netlify.toml render.yaml # Configuración de despliegue
+└── README.md
 ```
 
-## 🛠️ Notas técnicas
-- Las contraseñas se cifran con **BCrypt** usando la librería `bcrypt` directamente
-  (más robusto que `passlib` frente a las versiones recientes de bcrypt).
-- En producción se recomienda un **proxy inverso (Caddy)** con HTTPS delante de Uvicorn,
-  tal como se describe en el Informe 2 de Arquitectura.
-- Las colecciones (`usuarios`, `pacientes`, `citas`, `historias`) se crean automáticamente
-  al ejecutar `seed.py`.
+## 📄 Despliegue
+
+Consulta la guía paso a paso en [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md)
+y el flujo de trabajo en Git en [`docs/GUIA_GIT.md`](docs/GUIA_GIT.md).

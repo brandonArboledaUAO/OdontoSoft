@@ -1,5 +1,14 @@
 /* ===== Cliente de la API + manejo de sesión ===== */
-const API_BASE = "http://localhost:8000";
+/* La URL del backend se resuelve automáticamente:
+   1) window.ODONTO_API si está definida en js/config.js (producción),
+   2) http://localhost:8000 en desarrollo local,
+   3) el mismo origen si el frontend lo sirve el propio backend. */
+const API_BASE = (function () {
+  if (window.ODONTO_API) return window.ODONTO_API;
+  const h = location.hostname;
+  if (h === "localhost" || h === "127.0.0.1" || h === "") return "http://localhost:8000";
+  return location.origin;
+})();
 
 function getToken(){ return sessionStorage.getItem("token"); }
 function getUser(){ try{ return JSON.parse(sessionStorage.getItem("user")); }catch(e){ return null; } }
