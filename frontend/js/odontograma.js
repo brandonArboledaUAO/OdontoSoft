@@ -40,6 +40,7 @@ function renderOdontograma(container, valores, opts){
   const editable = !!opts.editable;
   const estado = Object.assign(odontogramaVacio(), valores || {});
   let activo = "caries"; // estado seleccionado en la paleta
+  const celdas = {};      // num -> elemento del diente (para repintar)
 
   const quad = dientes => {
     const wrap = document.createElement("div");
@@ -48,11 +49,14 @@ function renderOdontograma(container, valores, opts){
       const t = document.createElement("div");
       t.className = "odo-tooth";
       t.innerHTML = `<div class="box"></div><div class="num">${num}</div>`;
+      celdas[String(num)] = t;
       _pintarDiente(t, estado[String(num)]);
       if(editable){
         t.addEventListener("click", () => {
+          const anterior = estado[String(num)];
           estado[String(num)] = activo;
           _pintarDiente(t, activo);
+          if(typeof opts.onChange === "function") opts.onChange(String(num), activo, anterior);
         });
       }
       wrap.appendChild(t);
@@ -107,7 +111,13 @@ function renderOdontograma(container, valores, opts){
   root.appendChild(leg);
 
   container.appendChild(root);
-  return { getValores: () => Object.assign({}, estado) };
+  return {
+    getValores: () => Object.assign({}, estado),
+    setValores: (nuevos) => {
+      Object.assign(estado, nuevos || {});
+      Object.keys(celdas).forEach(num => _pintarDiente(celdas[num], estado[num]));
+    },
+  };
 }
 
 // Resumen compacto de dientes afectados (para vistas de solo lectura)

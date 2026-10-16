@@ -7,37 +7,79 @@
 
   c.innerHTML = `
     <div class="toolbar">
-      <div class="search"><input id="q" placeholder="Buscar por nombre, apellido o documento..."></div>
+      <div class="search" style="position:relative">
+        <input id="q" placeholder="Buscar por nombre, apellido o documento..." autocomplete="off">
+        <div id="autocompletar" style="position:absolute;left:0;right:0;z-index:20"></div>
+      </div>
+      <select id="orden" style="padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:#fff">
+        <option value="nombre">Ordenar: nombre</option>
+        <option value="documento">Ordenar: documento</option>
+      </select>
       ${puedeEditar ? `<button class="btn" id="nuevo">+ Nuevo paciente</button>` : ""}
     </div>
     <div class="card"><div id="tabla"></div></div>`;
+
+  function renderTabla(lista){
+    const tabla = document.getElementById("tabla");
+    if(!lista.length){ tabla.innerHTML = `<div class="empty">No se encontraron pacientes.</div>`; return; }
+    tabla.innerHTML = `<table><thead><tr>
+      <th>Documento</th><th>Nombres</th><th>Apellidos</th><th>Teléfono</th><th>EPS</th><th></th>
+      </tr></thead><tbody>${lista.map(p => `<tr>
+        <td>${esc(p.tipo_documento||"CC")} ${esc(p.documento)}</td>
+        <td>${esc(p.nombres)}</td><td>${esc(p.apellidos)}</td>
+        <td>${esc(p.telefono||"-")}</td><td>${esc(p.eps||"-")}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="btn-ghost btn-sm" onclick='verFicha("${p.id}")'>Ver ficha</button>
+          ${esOdontologa ? `<a class="btn btn-sm" href="historia.html?paciente=${p.id}">Historia</a>` : ""}
+        </td></tr>`).join("")}</tbody></table>`;
+  }
 
   async function cargar(q){
     const tabla = document.getElementById("tabla");
     tabla.innerHTML = `<div class="empty">Cargando...</div>`;
     try{
       const lista = await api("/pacientes/?q=" + encodeURIComponent(q||""));
-      if(!lista.length){ tabla.innerHTML = `<div class="empty">No se encontraron pacientes.</div>`; return; }
-      tabla.innerHTML = `<table><thead><tr>
-        <th>Documento</th><th>Nombres</th><th>Apellidos</th><th>Teléfono</th><th>EPS</th><th></th>
-        </tr></thead><tbody>${lista.map(p => `<tr>
-          <td>${esc(p.tipo_documento||"CC")} ${esc(p.documento)}</td>
-          <td>${esc(p.nombres)}</td><td>${esc(p.apellidos)}</td>
-          <td>${esc(p.telefono||"-")}</td><td>${esc(p.eps||"-")}</td>
-          <td style="text-align:right;white-space:nowrap">
-            <button class="btn-ghost btn-sm" onclick='verFicha("${p.id}")'>Ver ficha</button>
-            ${esOdontologa ? `<a class="btn btn-sm" href="historia.html?paciente=${p.id}">Historia</a>` : ""}
-          </td></tr>`).join("")}</tbody></table>`;
+      const orden = document.getElementById("orden").value;
+      let ordenada = lista;
+      if(orden === "documento"){
+        // Orden por documento mediante el Árbol Binario de Búsqueda (recorrido inorden)
+        try{
+          const bst = await api("/estructuras/pacientes-bst");
+          const pos = {}; bst.ordenados.forEach((p,i)=> pos[p.documento] = i);
+          ordenada = [...lista].sort((a,b)=> (pos[a.documento] ?? 9999) - (pos[b.documento] ?? 9999));
+        }catch(ex){}
+      }else{
+        ordenada = [...lista].sort((a,b)=> `${a.nombres} ${a.apellidos}`.localeCompare(`${b.nombres} ${b.apellidos}`));
+      }
+      renderTabla(ordenada);
     }catch(ex){ tabla.innerHTML = `<div class="empty">Error: ${esc(ex.detail||"")}</div>`; }
+  }
+
+  // Autocompletado de búsqueda (estructura Trie)
+  async function autocompletar(q){
+    const drop = document.getElementById("autocompletar");
+    if(!q){ drop.innerHTML = ""; return; }
+    try{
+      const r = await api("/estructuras/autocompletar?prefijo=" + encodeURIComponent(q) + "&limite=6");
+      drop.innerHTML = r.coincidencias.length
+        ? `<div class="trie-drop">` + r.coincidencias.map(p =>
+            `<div class="ti" style="cursor:pointer" onclick='verFicha("${p.id}")'><span>${esc(p.nombres)} ${esc(p.apellidos)}</span><small>${esc(p.documento)}</small></div>`).join("") + `</div>`
+        : "";
+    }catch(ex){}
   }
 
   let timer;
   document.getElementById("q").addEventListener("input", e => {
-    clearTimeout(timer); timer = setTimeout(()=> cargar(e.target.value), 250);
+    clearTimeout(timer);
+    const q = e.target.value;
+    timer = setTimeout(()=> { cargar(q); autocompletar(q); }, 220);
   });
+  document.getElementById("q").addEventListener("blur", ()=> setTimeout(()=>{ const d=document.getElementById("autocompletar"); if(d) d.innerHTML=""; }, 200));
+  document.getElementById("orden").addEventListener("change", ()=> cargar(document.getElementById("q").value));
   if(puedeEditar) document.getElementById("nuevo").addEventListener("click", modalNuevo);
 
   window.verFicha = async function(id){
+    const d = document.getElementById("autocompletar"); if(d) d.innerHTML = "";
     try{
       const p = await api("/pacientes/" + id);
       openModal("Ficha del paciente", `

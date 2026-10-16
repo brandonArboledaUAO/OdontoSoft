@@ -4,6 +4,7 @@
   const c = document.getElementById("content");
   const params = new URLSearchParams(location.search);
   let pacienteId = params.get("paciente");
+  let odoApi = null;   // API del odontograma de trabajo (para la función Deshacer)
 
   c.innerHTML = `
     <div class="toolbar">
@@ -70,9 +71,24 @@
         </div>
       </div>
 
+      <div class="card"><div class="card-head"><h2>Odontograma</h2>
+        <button class="btn-ghost btn-sm" id="btnDeshacer">↶ Deshacer</button></div>
+        <div class="card-body">
+          <div id="odoTrabajo"></div>
+          <div id="odoCambios" style="margin-top:10px"></div>
+        </div></div>
+
       <div class="card"><div class="card-head"><h2>Plan de tratamiento</h2>
         <button class="btn btn-sm" id="btnProc">+ Procedimiento</button></div>
         <div id="plan"></div></div>
+
+      <div class="card"><div class="card-head"><h2>Secuencia recomendada de procedimientos</h2></div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:#64748b;margin-bottom:8px">Selecciona los procedimientos a realizar; el sistema calcula el orden clínico recomendado y agrega los pasos previos necesarios.</p>
+          <div id="secProcs" style="display:flex;flex-wrap:wrap;gap:10px 18px;margin-bottom:10px"></div>
+          <button class="btn btn-sm" id="btnSecuencia">Calcular secuencia</button>
+          <div id="secResultado" style="margin-top:10px"></div>
+        </div></div>
 
       <div class="card"><div class="card-head"><h2>Evolución / Valoraciones</h2></div>
         <div class="card-body"><div class="timeline" id="timeline"></div></div></div>`;
@@ -111,6 +127,71 @@
     document.getElementById("btnNueva").addEventListener("click", () => modalValoracion(p));
     document.getElementById("btnAnt").addEventListener("click", guardarAntecedentes);
     document.getElementById("btnProc").addEventListener("click", modalProcedimiento);
+    document.getElementById("btnDeshacer").addEventListener("click", deshacerOdontograma);
+    document.getElementById("btnSecuencia").addEventListener("click", calcularSecuencia);
+    cargarOdontogramaTrabajo();
+    cargarCatalogoProcedimientos();
+  }
+
+  // ----- Odontograma de trabajo con Deshacer (estructura Pila) -----
+  async function cargarOdontogramaTrabajo(){
+    try{
+      const est = await api("/odontograma/" + pacienteId);
+      odoApi = renderOdontograma(document.getElementById("odoTrabajo"), est.odontograma_actual, {
+        editable: true,
+        onChange: async (diente, estado) => {
+          try{ await api(`/odontograma/${pacienteId}/cambio`, { method:"POST", body:{ diente, estado } }); refrescarPila(); }
+          catch(ex){ toast(ex.detail||"Error","err"); }
+        }
+      });
+      pintarPila(est);
+    }catch(ex){ document.getElementById("odoTrabajo").innerHTML = `<div class="empty">No disponible</div>`; }
+  }
+  async function refrescarPila(){ try{ pintarPila(await api("/odontograma/" + pacienteId)); }catch(ex){} }
+  function pintarPila(est){
+    const btn = document.getElementById("btnDeshacer");
+    if(btn) btn.disabled = !est.puede_deshacer;
+    const pila = est.pila_deshacer || [];
+    document.getElementById("odoCambios").innerHTML = pila.length
+      ? `<div style="font-size:12px;color:#64748b">Cambios recientes (se pueden deshacer): ` +
+        pila.slice(0,6).map(ch => `<span class="chip">${esc(ch.diente)}: ${esc(ch.nuevo)}</span>`).join("") + `</div>`
+      : `<div style="font-size:12px;color:#94a3b8">Sin cambios recientes.</div>`;
+  }
+  async function deshacerOdontograma(){
+    try{
+      const r = await api(`/odontograma/${pacienteId}/deshacer`, { method:"POST" });
+      const est = await api("/odontograma/" + pacienteId);
+      if(odoApi) odoApi.setValores(est.odontograma_actual);
+      pintarPila(est); toast(r.mensaje);
+    }catch(ex){ toast(ex.detail||"No hay cambios para deshacer","err"); }
+  }
+
+  // ----- Secuencia recomendada de procedimientos (estructura Grafo) -----
+  async function cargarCatalogoProcedimientos(){
+    const cont = document.getElementById("secProcs");
+    try{
+      const procs = await api("/estructuras/procedimientos");
+      if(!procs.length){
+        cont.innerHTML = `<div style="font-size:12.5px;color:#c62828">No hay procedimientos cargados en la base de datos. Ejecute <b>cargar_procedimientos.py</b> (o <b>seed.py</b>) en el backend para crear la colección <b>procedimientos</b>.</div>`;
+        return;
+      }
+      cont.innerHTML = procs.map(p =>
+        `<label style="font-size:12.5px;display:flex;align-items:center;gap:5px"><input type="checkbox" value="${p.codigo}"> ${esc(p.nombre)}</label>`).join("");
+    }catch(ex){
+      cont.innerHTML = `<div style="font-size:12.5px;color:#c62828">No se pudo cargar el catálogo de procedimientos.</div>`;
+    }
+  }
+  async function calcularSecuencia(){
+    const sel = Array.from(document.querySelectorAll("#secProcs input:checked")).map(x => x.value);
+    if(!sel.length){ toast("Selecciona al menos un procedimiento","err"); return; }
+    try{
+      const r = await api("/estructuras/plan-orden", { method:"POST", body:{ procedimientos: sel } });
+      const pre = r.incluye_prerrequisitos.length
+        ? `<div style="font-size:12px;color:#64748b;margin-bottom:6px">Pasos previos necesarios: ${r.incluye_prerrequisitos.map(esc).join(", ")}</div>` : "";
+      const chips = r.orden_nombres.map((nom,i) =>
+        `<span class="chip-ord"><span class="n">${i+1}</span>${esc(nom)}</span>`).join('<span class="ord-arrow">→</span>');
+      document.getElementById("secResultado").innerHTML = pre + `<div class="chips-order">${chips}</div>`;
+    }catch(ex){ toast(ex.detail||"Error","err"); }
   }
 
   window.verOdontograma = function(valId){
@@ -151,21 +232,22 @@
   }
 
   function modalValoracion(p){
+    const actual = odoApi ? odoApi.getValores() : {};
     openModal("Nueva valoración clínica", `
       <div class="form-grid">
         <div class="field full"><label>Motivo de consulta *</label><input id="v_motivo"></div>
         <div class="field full"><label>Anamnesis</label><textarea id="v_anam" rows="2"></textarea></div>
       </div>
-      <div class="section-title">Odontograma</div>
+      <div class="section-title">Odontograma que se guardará (estado actual)</div>
       <div id="odoEdit"></div>
       <div class="field full" style="margin-top:14px"><label>Observaciones</label><textarea id="v_obs" rows="2"></textarea></div>`,
       `<button class="btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn" id="ok">Guardar valoración</button>`, true);
 
-    const odo = renderOdontograma(document.getElementById("odoEdit"), null, { editable:true });
+    renderOdontograma(document.getElementById("odoEdit"), actual, { editable:false });
 
     document.getElementById("ok").addEventListener("click", async () => {
       const body = { motivo:val("v_motivo"), anamnesis:val("v_anam"),
-                     odontograma: odo.getValores(), observaciones:val("v_obs") };
+                     odontograma: actual, observaciones:val("v_obs") };
       if(!body.motivo){ toast("Indique el motivo de consulta","err"); return; }
       try{ await api(`/historias/${pacienteId}/valoraciones`, { method:"POST", body });
         closeModal(); toast("Valoración registrada"); cargar();
