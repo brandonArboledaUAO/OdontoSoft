@@ -21,7 +21,7 @@ Todas las ramas se integran (merge) sobre `main`.
 
 | Recurso | Enlace |
 |---|---|
-| Repositorio Git | https://github.com/Claracevedo/OdontoSoft_Entrega_Final |
+| Repositorio Git | [https://github.com/brandonArboledaUAO/OdontoSoft.git] |
 | Frontend (Netlify) | `<PEGAR_URL_DE_NETLIFY>` |
 | Backend / API (Render) | `<PEGAR_URL_DE_RENDER>` |
 
@@ -102,8 +102,3 @@ OdontoSoft/
 ├── netlify.toml render.yaml # Configuración de despliegue
 └── README.md
 ```
-
-## 📄 Despliegue
-
-Consulta la guía paso a paso en [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md)
-y el flujo de trabajo en Git en [`docs/GUIA_GIT.md`](docs/GUIA_GIT.md).
